@@ -167,7 +167,8 @@
     padding:4px 20px 6px;
   }
   #guess{
-    flex:1;
+    flex:1 1 auto;
+    min-width:0;
     font-family:'JetBrains Mono',monospace;
     font-size:17px;
     letter-spacing:.06em;
@@ -180,6 +181,7 @@
   }
   #guess:focus{ border-color:var(--teal-deep); box-shadow:0 0 0 3px #3f8f8330; }
   button.enter{
+    flex:0 0 auto;
     font-family:'Inter',sans-serif;
     font-weight:700;
     font-size:13px;
@@ -190,6 +192,7 @@
     color:var(--paper);
     border:none;
     cursor:pointer;
+    white-space:nowrap;
   }
   button.enter:active{ transform:translateY(1px); }
 
@@ -274,8 +277,9 @@
 
   .controls{
     display:flex;
+    flex-wrap:wrap;
     justify-content:center;
-    gap:14px;
+    gap:10px 14px;
     padding:0 20px 22px;
   }
   .ghost-btn{
