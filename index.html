@@ -28,6 +28,7 @@
     justify-content:center;
     padding:24px 12px;
     min-height:100vh;
+    -webkit-tap-highlight-color:transparent;
   }
   .sheet{
     width:100%;
@@ -50,7 +51,7 @@
      treatment below - a wider two-column broadsheet spread sitting on a
      desk-like backdrop, not just a stretched phone view. */
   .layout{ display:block; }
-  #hexSvg{ width:280px; height:252px; display:block; margin:0 auto; }
+  #hexSvg{ width:280px; height:252px; display:block; margin:0 auto; -webkit-tap-highlight-color:transparent; }
 
   @media (min-width: 860px){
     body{
@@ -152,6 +153,9 @@
     stroke-width:1.4;
     transition:fill .18s ease, opacity .15s ease;
     cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+    outline:none;
   }
   .hexcell.center{ fill:var(--ink); }
   .center-letter{ fill:#fbfaf5; }
