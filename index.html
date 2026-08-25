@@ -7483,6 +7483,37 @@
 
   function pad2(n){ return (n < 10 ? '0' : '') + n; }
 
+  // ---- Progress persistence (survives refresh, resets on a new day) --------
+  // Keyed by day number so yesterday's saved progress never leaks into
+  // today's puzzle - loadProgress() only returns a match if the stored day
+  // number equals the day number being requested.
+  var PROGRESS_KEY = 'spellathon_progress_v1';
+
+  function saveProgress(dayNumber){
+    try {
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify({
+        day: dayNumber,
+        found: found,
+        score: score
+      }));
+    } catch (e) {
+      // Storage unavailable (private browsing, quota, etc.) - fail silently;
+      // the game still works, it just won't survive a refresh this session.
+    }
+  }
+
+  function loadProgress(dayNumber){
+    try {
+      var raw = localStorage.getItem(PROGRESS_KEY);
+      if (!raw) return null;
+      var data = JSON.parse(raw);
+      if (!data || data.day !== dayNumber) return null;
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // ---- Date stamp ---------------------------------------------------------
   document.getElementById('dateStamp').textContent = new Date().toLocaleDateString(undefined,{ day:'numeric', month:'short', year:'numeric' });
 
@@ -7574,8 +7605,25 @@
       answers[w] = { pts: p.answers[w], pangram: p.pangrams.indexOf(w) > -1 };
     });
     maxScore = Object.keys(answers).reduce(function(s,w){ return s + answers[w].pts; }, 0);
-    found = {};
-    score = 0;
+
+    // The number shown to the player is the real calendar day count since
+    // launch (Day 1, Day 2, ...) - NOT the shuffled array index. This keeps
+    // "Puzzle #1" meaning "the first day this ever ran," regardless of which
+    // puzzle content that day happens to draw from the shuffled order.
+    var dayNumber = daysSinceLaunch() + 1;
+
+    // Restore progress if the player already made some this same day - a
+    // refresh (intentional or not) should never wipe out found words.
+    // A saved day number that doesn't match today's is simply ignored, so
+    // a new day's puzzle always starts fresh.
+    var saved = loadProgress(dayNumber);
+    if (saved){
+      found = saved.found || {};
+      score = saved.score || 0;
+    } else {
+      found = {};
+      score = 0;
+    }
 
     // Difficulty tiers, derived from word length: 4 letters = easy,
     // 5-6 letters = medium, 7+ (always includes the pangram) = hardest.
@@ -7594,17 +7642,15 @@
     document.getElementById('tierLabel2').textContent = pad2(tierThresholds.good) + '-good';
     document.getElementById('tierLabel3').textContent = pad2(tierThresholds.outstanding) + '-outstanding';
 
-    // The number shown to the player is the real calendar day count since
-    // launch (Day 1, Day 2, ...) - NOT the shuffled array index. This keeps
-    // "Puzzle #1" meaning "the first day this ever ran," regardless of which
-    // puzzle content that day happens to draw from the shuffled order.
-    var dayNumber = daysSinceLaunch() + 1;
     document.getElementById('editionLabel').textContent = 'No. ' + dayNumber + ' · Word Puzzle';
     drawHex(p.outer, p.center);
     document.getElementById('hintRow').textContent =
       Object.keys(pool).sort().map(function(l){ return l+'×'+pool[l]; }).join('   ') + '   (centre: ' + center + ')';
-    document.getElementById('ofTotal').textContent = '0 / ' + totalCount;
-    showMsg('New puzzle loaded. Good luck.', 'ok');
+    if (saved && Object.keys(found).length > 0){
+      showMsg('Welcome back — your progress is right where you left it.', 'ok');
+    } else {
+      showMsg('New puzzle loaded. Good luck.', 'ok');
+    }
     renderFound();
   }
 
@@ -7670,6 +7716,7 @@
     document.getElementById('foundNum').textContent = keys.length;
     document.getElementById('ofTotal').textContent = keys.length + ' / ' + Object.keys(answers).length;
     renderTier();
+    saveProgress(daysSinceLaunch() + 1);
   }
 
   function submitGuess(raw){
