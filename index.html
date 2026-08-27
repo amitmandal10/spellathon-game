@@ -348,6 +348,29 @@
     border-radius:3px;
     padding:3px 8px;
   }
+  .remaining-grid{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    min-height:20px;
+  }
+  .remaining-chip{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.02em;
+    color:var(--muted-text);
+    background:transparent;
+    border:1px dashed var(--ink);
+    border-radius:3px;
+    padding:3px 8px;
+  }
+  .remaining-chip.pangram{ color:var(--gold); border-color:#b8912b88; }
+  .remaining-chip .pts{
+    font-size:10px;
+    opacity:.65;
+    margin-left:6px;
+  }
   .placeholder{
     font-family:'Inter',sans-serif;
     font-size:12.5px;
@@ -465,6 +488,11 @@
       <div class="found-section" id="surplusSection" style="display:none;">
         <div class="found-title"><span>Surplus — valid, but not on today's list</span><span id="surplusCount"></span></div>
         <div class="surplus-grid" id="surplusGrid"></div>
+      </div>
+
+      <div class="found-section" id="remainingSection" style="display:none;">
+        <div class="found-title"><span>Remaining words — not scored</span><span id="remainingCount"></span></div>
+        <div class="remaining-grid" id="remainingGrid"></div>
       </div>
 
       <div class="controls">
@@ -8574,6 +8602,7 @@
   var score = 0;
   var surplusSet = {};      // this puzzle's valid-but-not-in-answers words (a Set-like lookup)
   var surplusFound = {};    // surplus words the player has actually discovered
+  var revealed = false;     // true once the player asks to see the unfound answers
 
   // ---- Daily rotation, no repeats until the whole bank has cycled -----------
   // Pin this to the date you launch the app. Never change it afterwards —
@@ -8630,7 +8659,8 @@
         day: dayNumber,
         found: found,
         score: score,
-        surplusFound: surplusFound
+        surplusFound: surplusFound,
+        revealed: revealed
       }));
     } catch (e) {
       // Storage unavailable (private browsing, quota, etc.) - fail silently;
@@ -8790,10 +8820,12 @@
       found = saved.found || {};
       score = saved.score || 0;
       surplusFound = saved.surplusFound || {};
+      revealed = !!saved.revealed;
     } else {
       found = {};
       score = 0;
       surplusFound = {};
+      revealed = false;
     }
 
     // Difficulty tiers, derived from word length: 4 letters = easy,
@@ -8886,12 +8918,37 @@
     document.getElementById('foundNum').textContent = keys.length;
     document.getElementById('ofTotal').textContent = keys.length + ' / ' + Object.keys(answers).length;
     renderTier();
+    renderRemaining();
     saveProgress(daysSinceLaunch() + 1);
 
     var streak = keys.length > 0
       ? updateStreak(daysSinceLaunch() + 1)
       : loadStreak();
     document.getElementById('streakNum').textContent = streak.current;
+  }
+
+  // Words the player never got. Shown only after "Show all answers" — they are
+  // listed for reference and never counted towards score or rating.
+  function renderRemaining(){
+    var section = document.getElementById('remainingSection');
+    var grid = document.getElementById('remainingGrid');
+    if (!revealed){ section.style.display = 'none'; return; }
+    var keys = Object.keys(answers).filter(function(w){ return !found[w]; }).sort();
+    if (keys.length === 0){
+      section.style.display = '';
+      grid.innerHTML = '<div class="placeholder">None — you found every word.</div>';
+      document.getElementById('remainingCount').textContent = '0';
+      return;
+    }
+    section.style.display = '';
+    grid.innerHTML = '';
+    keys.forEach(function(w){
+      var chip = document.createElement('span');
+      chip.className = 'remaining-chip' + (answers[w].pangram ? ' pangram' : '');
+      chip.innerHTML = w + '<span class="pts">' + answers[w].pts + '</span>';
+      grid.appendChild(chip);
+    });
+    document.getElementById('remainingCount').textContent = keys.length;
   }
 
   function renderSurplus(){
@@ -8999,15 +9056,16 @@
   });
 
   document.getElementById('giveUpBtn').addEventListener('click', function(){
-    Object.keys(answers).forEach(function(w){
-      if (!found[w]){ found[w] = true; score += answers[w].pts; }
-    });
+    var missing = Object.keys(answers).filter(function(w){ return !found[w]; }).length;
+    revealed = true;
     renderFound();
-    showMsg('Here are all the answers.', 'ok');
+    showMsg(missing === 0
+      ? 'You already found every word — nothing left to reveal.'
+      : 'Revealed ' + missing + ' word' + (missing === 1 ? '' : 's') + ' you missed. Your score stays as it is.', 'ok');
   });
 
   document.getElementById('resetBtn').addEventListener('click', function(){
-    found = {}; score = 0; surplusFound = {};
+    found = {}; score = 0; surplusFound = {}; revealed = false;
     document.getElementById('guess').value = '';
     clearTaps();
     renderFound();
