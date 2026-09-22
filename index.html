@@ -258,6 +258,17 @@
     white-space:nowrap;
   }
   button.enter:active{ transform:translateY(1px); }
+  button.enter:disabled,
+  #backspaceBtn:disabled{
+    opacity:.35;
+    cursor:default;
+    pointer-events:none;
+  }
+  #guess:disabled{
+    opacity:.5;
+    cursor:default;
+    background:var(--paper-edge);
+  }
 
   .msg{
     min-height:20px;
@@ -8856,6 +8867,7 @@
     }
     renderFound();
     renderSurplus();
+    if (revealed) lockInput(true);
   }
   // ---- Rating tiers (based on words found, not score) ----------------------
   function tierForFoundCount(n){
@@ -8977,7 +8989,33 @@
     svg.classList.add(cls);
   }
 
+  function lockInput(lock){
+    var input = document.getElementById('guess');
+    var backBtn = document.getElementById('backspaceBtn');
+    var enterBtn = document.querySelector('button.enter');
+    input.disabled = lock;
+    backBtn.disabled = lock;
+    enterBtn.disabled = lock;
+    input.placeholder = lock ? 'Game over — tap Restart to play again' : 'tap letters';
+    // Also visually grey out the hex tiles so tapping does nothing
+    svg.querySelectorAll('.hexcell').forEach(function(cell){
+      if (lock){
+        cell.style.cursor = 'default';
+        cell.style.opacity = cell.classList.contains('center') ? '0.5' : '0.4';
+      } else {
+        cell.style.cursor = '';
+        cell.style.opacity = '';
+      }
+    });
+    if (lock){
+      // Clear any partial word the player had typed
+      input.value = '';
+      clearTaps();
+    }
+  }
+
   function submitGuess(raw){
+    if (revealed) return; // game is over - answers already shown
     var word = raw.trim().toUpperCase();
     if (!word) return;
     if (word.length < 4){
@@ -9058,6 +9096,7 @@
   document.getElementById('giveUpBtn').addEventListener('click', function(){
     var missing = Object.keys(answers).filter(function(w){ return !found[w]; }).length;
     revealed = true;
+    lockInput(true);
     renderFound();
     showMsg(missing === 0
       ? 'You already found every word — nothing left to reveal.'
@@ -9068,6 +9107,7 @@
     found = {}; score = 0; surplusFound = {}; revealed = false;
     document.getElementById('guess').value = '';
     clearTaps();
+    lockInput(false);
     renderFound();
     renderSurplus();
     showMsg('Board reset. Good luck.', 'ok');
